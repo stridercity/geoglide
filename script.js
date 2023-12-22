@@ -491,7 +491,7 @@ console.error('Map source "point" not found.');
 function isLandRouteAvailable(origin, destination) {
 return new Promise((resolve, reject) => {
 const accessToken = 'pk.eyJ1IjoiYmFyZWJlYWNoMSIsImEiOiJjbHBrOGZyOTYwN2sxMmptcmxscHJmZTd2In0.sHV9n3l-dmiouWxxLcZmdw';
-const url = https://api.mapbox.com/directions/v5/mapbox/driving/${origin[0]},${origin[1]};${destination[0]},${destination[1]}?steps=true&geometries=geojson&access_token=${accessToken};
+const url = 'https://api.mapbox.com/directions/v5/mapbox/driving/${origin[0]},${origin[1]};${destination[0]},${destination[1]}?steps=true&geometries=geojson&access_token=${accessToken}';
 
     fetch(url)
         .then(response => response.json())

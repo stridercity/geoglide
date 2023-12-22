@@ -261,7 +261,7 @@ async function uploadRecordedVideo(videoBlob) {
     formData.append('video', videoBlob, 'animation.webm');
 
     try {
-        const response = await fetch('http://localhost:3000/encode-video', {
+        const response = await fetch('http://geoglide.org/encode-video', {
             method: 'POST',
             body: formData,
         });

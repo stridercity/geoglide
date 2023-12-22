@@ -13,7 +13,7 @@ module.exports = upload.single('video', async (req, res) => {
         const videoBuffer = req.file.buffer;
 
         // Use fluent-ffmpeg to encode the video
-        await new Promise((resolve, reject) => {
+        const encodedVideoBuffer = await new Promise((resolve, reject) => {
             ffmpeg()
                 .input(videoBuffer)
                 .inputFormat('webm')
@@ -28,10 +28,13 @@ module.exports = upload.single('video', async (req, res) => {
                     console.error('Error during video encoding:', err);
                     reject(err);
                 })
-                .save('encoded-video.mp4');
+                .on('data', (chunk) => {
+                    // Collect encoded video data in memory
+                    resolve(chunk);
+                });
         });
 
-        res.status(200).send('Video encoding complete.');
+        res.status(200).send(encodedVideoBuffer);
     } catch (error) {
         console.error('Error during video encoding:', error);
         res.status(500).send('Video encoding failed.');

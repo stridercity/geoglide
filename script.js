@@ -522,24 +522,29 @@ animateRoute(selectedVehicle, selectedTravelMode);
 });
 
 document.getElementById('submitBtn').addEventListener('click', () => {
-const departureInput = document.getElementById('departure').value;
-const arrivalInput = document.getElementById('arrival').value;
-const selectedVehicle = document.getElementById('vehicleDropdown').value;
-const selectedTravelMode = document.getElementById('travelModeDropdown').value;
+    console.log('Submit button clicked'); // Add this line
+    const departureInput = document.getElementById('departure').value;
+    const arrivalInput = document.getElementById('arrival').value;
+    const selectedVehicle = document.getElementById('vehicleDropdown').value;
+    const selectedTravelMode = document.getElementById('travelModeDropdown').value;
 
+    console.log('Departure Input:', departureInput);
+    console.log('Arrival Input:', arrivalInput);
 
-document.getElementById('departure').disabled = true;
-document.getElementById('arrival').disabled = true;
-document.getElementById('vehicleDropdown').disabled = true;
-document.getElementById('submitBtn').disabled = true;
+    document.getElementById('departure').disabled = true;
+    document.getElementById('arrival').disabled = true;
+    document.getElementById('vehicleDropdown').disabled = true;
+    document.getElementById('submitBtn').disabled = true;
 
-geocode(departureInput, (coordinates) => {
-    origin = coordinates;
-    geocode(arrivalInput, (coordinates) => {
-        destination = coordinates;
-        animateRoute(selectedVehicle, selectedTravelMode);
+    geocode(departureInput, (coordinates) => {
+        console.log('Origin Coordinates:', coordinates);
+        origin = coordinates;
+        geocode(arrivalInput, (coordinates) => {
+            console.log('Destination Coordinates:', coordinates);
+            destination = coordinates;
+            animateRoute(selectedVehicle, selectedTravelMode);
+        });
     });
-});
 });
 
 document.getElementById('toggleLayerBtn').addEventListener('click', () => {

@@ -1,4 +1,4 @@
-const multer = require('multer');
+onst multer = require('multer');
 const ffmpeg = require('fluent-ffmpeg');
 
 const storage = multer.memoryStorage();
@@ -22,7 +22,6 @@ module.exports = upload.single('video', async (req, res) => {
                 .toFormat('mp4')
                 .on('end', () => {
                     console.log('Video encoding complete.');
-                    resolve();
                 })
                 .on('error', (err) => {
                     console.error('Error during video encoding:', err);

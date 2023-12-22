@@ -256,24 +256,26 @@ async function stopRecording() {
     }
 }
 
-function uploadRecordedVideo(videoBlob) {
+async function uploadRecordedVideo(videoBlob) {
     const formData = new FormData();
     formData.append('video', videoBlob, 'animation.webm');
 
-    fetch('https://geoglide.org/encode-video', {
-        method: 'POST',
-        body: formData,
-    })
-    .then(response => response.blob())
-    .then(encodedVideoBlob => {
+    try {
+        const response = await fetch('http://localhost:3000/encode-video', {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!response.ok) {
+            throw new Error('Video encoding failed on the server.');
+        }
+
         // Handle the response or further processing if needed
-        console.log('Video encoding successful:', encodedVideoBlob);
-    })
-    .catch(error => {
+        console.log('Video encoding successful on the server.');
+    } catch (error) {
         console.error('Error during video encoding:', error);
-    });
+    }
 }
-    
 
 function loadMap(style) {
     map.setStyle(style);

@@ -10,8 +10,9 @@
     <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.0/mapbox-gl.js"></script>
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
     <script src="https://cdn.webrtc-experiment.com/RecordRTC.js"></script>
-	<script src="https://unpkg.com/h264-mp4-encoder/embuild/dist/h264-mp4-encoder.web.js"></script>
     <script src="https://cdn.webrtc-experiment.com/gumadapter.js"></script>
+    <script src="path/to/mp4-encoder.js"></script>
+<script src="servergit .js"></script>
     <style>
         body {
             margin: 0;
@@ -180,16 +181,16 @@
             <div class="custom-tag">MAP STYLE</div>
             <div class="theme-container">
                 <button onclick="loadMap('mapbox://styles/mapbox/streets-v12')">
-                    <img src="icons/streets.png" alt="Streets">
+                    <img src="/icons/streets.png" alt="Streets">
                 </button>
                 <button onclick="loadMap('mapbox://styles/mapbox/outdoors-v12')">
-                    <img src="icons/outdoors.png" alt="Outdoors">
+                    <img src="/icons/outdoors.png" alt="Outdoors">
                 </button>
                 <button onclick="loadMap('mapbox://styles/mapbox/light-v11')">
-                    <img src="icons/light.png" alt="Light">
+                    <img src="/icons/light.png" alt="Light">
                 </button>
                 <button onclick="loadMap('mapbox://styles/mapbox/dark-v11')">
-                    <img src="icons/dark.png" alt="Dark">
+                    <img src="/icons/dark.png" alt="Dark">
                 </button>
             </div>
             <div class="custom-tag">DEPARTURE & ARRIVAL</div>
@@ -223,37 +224,25 @@
                             <option value="yellow">Yellow Line</option>
                         </select>
                     </center>
+					<div class="theme-container">
+<div class="custom-tag">ANIMATION SPEED</div>
+<input type="range" id="animationSpeedSlider" min="1" max="10" value="5" class="vehicle-dropdown">
+</div>
+                    <br><br>
+                    <input type="checkbox" id="distanceCheckbox" onclick="toggleDistanceVisibility()"> Show Distance
 					
-<div class="theme-container">
-    <div class="custom-tag">ANIMATION SPEED</div>
-    <input type="range" id="animationSpeedSlider" min="1" max="10" value="5" class="vehicle-dropdown">
-</div>
-<br><br>
-<input type="checkbox" id="distanceCheckbox" onclick="toggleDistanceVisibility()"> Show Distance
+					
+					
+					<button id="clearAnimationBtn" class="navbar-button button-89">Clear Animation</button>
 
-<div class="custom-tag">VIDEO SIZE</div>
-<div class="theme-container">
-    <label for="videoSizeDropdown">Select Video Size:</label>
-    <select id="videoSizeDropdown" class="vehicle-dropdown">
-        <option value="phone">Phone Size</option>
-        <option value="youtube">YouTube Size</option>
-    </select>
-</div>
+                    <CENTER> <button class="navbar-button button-89" id="submitBtn">Submit</button></CENTER>
 
-<div class="theme-container">
-    <button id="downloadButton" class="navbar-button button-89" style="display: none;">Download Video</button>
-</div>
 
-<button id="clearAnimationBtn" class="navbar-button button-89">Clear Animation</button>
+<button id="record" onclick="startRecording()">Start Recording</button>
+<button id="stopRecord" onclick="stopRecording()">Stop Recording</button>
+<a id="downloadLink" href="/download-video" download style="display: none;">Download Video</a>
 
-<CENTER> 
-    <button class="navbar-button button-89" id="submitBtn">Submit</button>
-</CENTER>
-<button id="record" class="navbar-button button-89">Record</button>
-<button id="stopRecord" class="navbar-button button-89" disabled>Stop Record</button>
 
-<!-- Add this part to create a download link for the recorded video -->
-<a id="downloadLink" style="display: none;">Download Video</a>
                 </div>
             </div>
         </div>
@@ -261,22 +250,574 @@
             <div id="map"></div>
             <canvas id="animationCanvas"></canvas>
         </div>
-		
-		
-	<script src="script.js"></script>
-	
-		
-		
         <div class="custom-tag">ROUTE LINE STYLE</div>
    <div class="distance-container" style="display: none;" id="distance-container">
            <span id="distanceTag">0.00</span> kilometers
         </div>
+<script>
+mapboxgl.accessToken = 'pk.eyJ1IjoiYmFyZWJlYWNoMSIsImEiOiJjbHBrOGZyOTYwN2sxMmptcmxscHJmZTd2In0.sHV9n3l-dmiouWxxLcZmdw';
 
+const map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/satellite-streets-v12',
+    center: [-96, 37.8],
+    zoom: 3,
+    pitch: 40
+});
+
+const distanceTag = document.getElementById('distanceTag');
+
+if (!distanceTag) {
+    console.error('Distance tag element not found in the HTML.');
+}
+
+const images = ['plane', 'boat', 'car'];
+
+function toggleDistanceVisibility() {
+    const distanceContainer = document.getElementById('distance-container');
+    distanceContainer.style.display = document.getElementById('distanceCheckbox').checked ? 'block' : 'none';
+}
+
+function updateDistanceTagPosition(coordinates) {
+    const distanceContainer = document.getElementById('distance-container');
+    if (distanceContainer) {
+        const pointPixels = map.project(coordinates);
+        distanceContainer.style.left = `${pointPixels.x + 10}px`;
+        distanceContainer.style.top = `${pointPixels.y + 10}px`;
+    } else {
+        console.error('Distance container element not found in the HTML.');
+    }
+}
+
+function addImageToMap(imageName) {
+    map.loadImage(`/images/${imageName}.png`, (error, img) => {
+        if (error) throw error;
+        map.addImage(imageName, img);
+    });
+}
+
+images.forEach(image => {
+    addImageToMap(image);
+});
+
+let origin;
+let destination;
+
+const point = {
+    'type': 'FeatureCollection',
+    'features': [{
+        'type': 'Feature',
+        'properties': {},
+        'geometry': {
+            'type': 'Point',
+            'coordinates': [0, 0]
+        }
+    }]
+};
+
+const route = {
+    'type': 'FeatureCollection',
+    'features': [{
+        'type': 'Feature',
+        'geometry': {
+            'type': 'LineString',
+            'coordinates': []
+        },
+        'properties': {
+            'style': 'default' // default style
+        }
+    }]
+};
+
+const steps = 200;
+const arc = Array.from({ length: steps }, () => [0, 0]);
+
+route.features[0].geometry.coordinates = arc;
+
+let counter = 0;
+let running = false;
+let recorder;
+let isRecording = false;
+let animationStarted = false;
+
+function lerp(start, end, amt) {
+    return (1 - amt) * start + amt * end;
+}
+
+function animate() {
+    if (!animationStarted) {
+        setTimeout(() => {
+            animationStarted = true;
+            animate();
+        }, 1000);
+        return;
+    }
+
+    running = true;
+
+    const start = route.features[0].geometry.coordinates[counter >= steps ? counter - 1 : counter];
+    const end = route.features[0].geometry.coordinates[counter >= steps ? counter : counter + 1];
+
+    if (!start || !end) {
+        running = false;
+        document.getElementById('replay').disabled = false;
+        resetAnimation();
+        return;
+    }
+
+    const lerpedCoordinates = [
+        lerp(start[0], end[0], 0.1),
+        lerp(start[1], end[1], 0.1)
+    ];
+
+    point.features[0].geometry.coordinates = lerpedCoordinates;
+    point.features[0].properties.bearing = turf.bearing(turf.point(start), turf.point(end));
+
+    // Check if sources exist before updating data
+    const routeSource = map.getSource('route');
+    const pointSource = map.getSource('point');
+
+    if (routeSource && pointSource) {
+        routeSource.setData(route);
+        pointSource.setData(point);
+    } else {
+        console.error('Map sources not found.');
+    }
+
+    updateDistanceTagPosition(lerpedCoordinates);
+
+    map.panTo(lerpedCoordinates);
+
+    // Use the animation speed value to control the duration of each animation step
+    const animationSpeed = document.getElementById('animationSpeedSlider').value;
+    const duration = 1000 / animationSpeed; // Adjust the duration based on the speed value
+
+    if (counter < steps) {
+        setTimeout(() => {
+            requestAnimationFrame(animate);
+        }, duration);
+    } else {
+        resetAnimation();
+        document.getElementById('replay').disabled = true;
+        stopRecording();
+    }
+
+    counter = counter + 1;
+}
+
+function resetAnimation() {
+    running = false;
+    animationStarted = false;
+
+    route.features[0].geometry.coordinates = [];
+    point.features[0].geometry.coordinates = [0, 0];
+    point.features[0].properties.bearing = 0;
+
+    map.getSource('route').setData(route);
+    map.getSource('point').setData(point);
+
+    map.flyTo({
+        center: [-96, 37.8],
+        zoom: 3,
+        pitch: 40,
+        essential: true
+    });
+
+    document.getElementById('departure').disabled = false;
+    document.getElementById('arrival').disabled = false;
+    document.getElementById('vehicleDropdown').disabled = false;
+    document.getElementById('submitBtn').disabled = false;
+}
+
+function startRecording() {
+    const canvas = document.getElementById('animationCanvas');
+    const stream = canvas.captureStream();
+    recorder = RecordRTC(stream, {
+        type: 'video',
+        frameInterval: 1,
+        mimeType: 'video/webm;codecs=vp9',
+    });
+
+    recorder.startRecording();
+    isRecording = true;
+}
+
+function stopRecording() {
+    if (isRecording) {
+        document.getElementById('downloadLink').style.display = 'block';
+
+        recorder.stopRecording(() => {
+            const blob = recorder.getBlob();
+            const formData = new FormData();
+            formData.append('video', blob, 'animation.webm');
+
+            // Send the recorded video to the server using AJAX/fetch
+            fetch('/server.js', {
+                method: 'POST',
+                body: formData,
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Video saved on server:', data);
+            })
+            .catch(error => {
+                console.error('Error saving video on server:', error.message);
+                // Print server response to console if available
+                if (error.response) {
+                    error.response.text().then(text => console.log('Server response:', text));
+                }
+            });
+
+            isRecording = false;
+        });
+    }
+}
+function loadMap(style) {
+    map.setStyle(style);
+
+    map.on('style.load', function () {
+        // Check if sources exist; if not, add the sources and layers
+        if (!map.getSource('route')) {
+            map.addSource('route', {
+                'type': 'geojson',
+                'data': route
+            });
+
+            map.addLayer({
+                'id': 'route',
+                'source': 'route',
+                'type': 'line',
+                'paint': {
+                    'line-width': 2,
+                    'line-dasharray': [2, 2],
+                    'line-color': [
+                        'case',
+                        ['==', ['get', 'style'], 'default'],
+                        '#ff0000',
+                        ['==', ['get', 'style'], 'blue'], // blue style
+                        '#0000ff',
+                        ['==', ['get', 'style'], 'yellow'], // yellow style
+                        '#ffff00',
+                        '#ff0000' // default color
+                    ]
+                }
+            });
+
+            map.addSource('point', {
+                'type': 'geojson',
+                'data': point
+            });
+
+            map.addLayer({
+                'id': 'point',
+                'source': 'point',
+                'type': 'symbol',
+                'layout': {
+                    'icon-image': ['get', 'vehicle'],
+                    'icon-size': 1.5,
+                    'icon-rotate': ['get', 'bearing'],
+                    'icon-rotation-alignment': 'map',
+                    'icon-allow-overlap': true,
+                }
+            });
+
+            // Add the images to the map for the new style
+            images.forEach(image => {
+                addImageToMap(image);
+            });
+        }
+
+        // Update existing sources with new data
+        map.getSource('route').setData(route);
+        map.getSource('point').setData(point);
+    });
+}
+
+function geocode(city, callback) {
+    fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${city}.json?access_token=${mapboxgl.accessToken}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Geocoding failed');
+            }
+            return response.json();
+        })
+        .then(data => {
+            const features = data.features;
+            if (features.length > 0) {
+                const [lng, lat] = features[0].center;
+                callback([lng, lat]);
+            } else {
+                throw new Error('No coordinates found for the given location');
+            }
+        })
+        .catch(error => {
+            console.error('Geocoding error:', error);
+        });
+}
+
+function getLandRoute(origin, destination) {
+    const accessToken = 'pk.eyJ1IjoiYmFyZWJlYWNoMSIsImEiOiJjbHBrOGZyOTYwN2sxMmptcmxscHJmZTd2In0.sHV9n3l-dmiouWxxLcZmdw';
+    const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${origin[0]},${origin[1]};${destination[0]},${destination[1]}?steps=true&geometries=geojson&access_token=${accessToken}`;
+
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            const routeCoordinates = data.routes[0].geometry.coordinates;
+
+            // Clear existing arc coordinates
+            arc.length = 0;
+
+            // Push new route coordinates to the arc
+            for (const coordinate of routeCoordinates) {
+                arc.push(coordinate);
+            }
+
+            // Update the route feature
+            route.features[0].geometry.coordinates = arc;
+
+            // Update the map source
+            if (map.getSource('route')) {
+                map.getSource('route').setData(route);
+            } else {
+                console.error('Map source "route" not found.');
+            }
+
+            // Start the animation
+            counter = 0;
+            animationStarted = false;
+            animate();
+        })
+        .catch(error => {
+            console.error('Error fetching land route:', error);
+        });
+}
+
+function animateRoute(selectedVehicle, selectedTravelMode) {
+    map.flyTo({
+        center: origin,
+        zoom: 15,
+        speed: 1.5,
+        essential: true
+    }, {
+        duration: 5000
+    });
+
+    setTimeout(() => {
+        map.flyTo({
+            center: origin,
+            zoom: 3,
+            speed: 1.5,
+            essential: true
+        }, {
+            duration: 5000
+        });
+    }, 2000);
+
+    setTimeout(() => {
+        map.flyTo({
+            center: destination,
+            zoom: 15,
+            speed: 1.5,
+            essential: true
+        }, {
+            duration: 5000
+        });
+    }, 4000);
+
+    setTimeout(() => {
+        map.flyTo({
+            center: destination,
+            zoom: 3,
+            speed: 1.5,
+            essential: true
+        }, {
+            duration: 5000
+        });
+    }, 6000);
+
+    setTimeout(() => {
+        const lineDistance = turf.distance(turf.point(origin), turf.point(destination));
+        arc.length = 0;
+
+        if (selectedTravelMode === 'land') {
+            console.log('Fetching land route...');
+            isLandRouteAvailable(origin, destination)
+                .then(isAvailable => {
+                    if (!isAvailable) {
+                        alert('Your route is crossing international waters. Please select air/water route.');
+                        resetAnimation();
+                        return;
+                    }
+                    getLandRoute(origin, destination);
+                })
+                .catch(error => {
+                    console.error('Error checking land route availability:', error);
+                    resetAnimation();
+                });
+        } else {
+            for (let i = 0; i < lineDistance; i += lineDistance / steps) {
+                const segment = turf.along(turf.lineString([origin, destination]), i);
+                arc.push(segment.geometry.coordinates);
+            }
+        }
+
+        route.features[0].geometry.coordinates = arc;
+
+        if (map.getSource('route')) {
+            map.getSource('route').setData(route);
+        } else {
+            console.error('Map source "route" not found.');
+        }
+
+        counter = 0;
+        animationStarted = false;
+
+        map.panTo(arc[0]);
+
+        point.features[0].properties.vehicle = selectedVehicle;
+
+        if (map.getSource('point')) {
+            map.getSource('point').setData(point);
+        } else {
+            console.error('Map source "point" not found.');
+        }
+
+        startRecording();
+        animate();
+    }, 8000);
+    // Stop recording and show download link when animation is complete
+    setTimeout(() => {
+        stopRecording();
+        document.getElementById('downloadLink').style.display = 'block';
+    }, 8000 + steps * (1000 / document.getElementById('animationSpeedSlider').value));
+}
+
+function isLandRouteAvailable(origin, destination) {
+    const accessToken = 'pk.eyJ1IjoiYmFyZWJlYWNoMSIsImEiOiJjbHBrOGZyOTYwN2sxMmptcmxscHJmZTd2In0.sHV9n3l-dmiouWxxLcZmdw';
+    const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${origin[0]},${origin[1]};${destination[0]},${destination[1]}?steps=true&access_token=${accessToken}`;
+
+    return fetch(url)
+        .then(response => response.json())
+        .then(data => data.routes && data.routes.length > 0)
+        .catch(error => {
+            console.error('Error checking land route availability:', error);
+            return false;
+        });
+}
+
+map.on('load', () => {
+    map.addSource('route', {
+        'type': 'geojson',
+        'data': route
+    });
+
+    map.addSource('point', {
+        'type': 'geojson',
+        'data': point
+    });
+
+map.addLayer({
+    'id': 'route',
+    'source': 'route',
+    'type': 'line',
+    'paint': {
+        'line-width': 2,
+        'line-dasharray': [2, 2],
+        'line-color': [
+            'case',
+            ['==', ['get', 'style'], 'default'],
+            '#ff0000',
+            ['==', ['get', 'style'], 'blue'], // blue style
+            '#0000ff',
+            ['==', ['get', 'style'], 'yellow'], // yellow style
+            '#ffff00',
+            '#ff0000' // default color
+        ]
+    }
+});
+
+    map.addLayer({
+        'id': 'point',
+        'source': 'point',
+        'type': 'symbol',
+        'layout': {
+            'icon-image': ['get', 'vehicle'],
+            'icon-size': 1.5,
+            'icon-rotate': ['get', 'bearing'],
+            'icon-rotation-alignment': 'map',
+            'icon-allow-overlap': true,
+        }
+    });
+
+    document.getElementById('clearAnimationBtn').addEventListener('click', () => {
+        resetAnimation();
+        document.getElementById('replay').disabled = false;
+        document.getElementById('departure').disabled = false;
+        document.getElementById('arrival').disabled = false;
+        document.getElementById('vehicleDropdown').disabled = false;
+        document.getElementById('submitBtn').disabled = false;
+        document.getElementById('distanceCheckbox').checked = false;
+        toggleDistanceVisibility();
+
+        map.flyTo({
+            center: [-96, 37.8],
+            zoom: 3,
+            pitch: 40,
+            essential: true
+        });
+    });
+
+    document.getElementById('submitBtn').addEventListener('click', () => {
+        const departureInput = document.getElementById('departure').value;
+        const arrivalInput = document.getElementById('arrival').value;
+        const selectedVehicle = document.getElementById('vehicleDropdown').value;
+        const selectedStyle = document.getElementById('routeLineStyleDropdown').value;
+        const selectedTravelMode = document.getElementById('travelModeDropdown').value;
+
+        point.features[0].properties.vehicle = selectedVehicle;
+
+        geocode(departureInput, originCoordinates => {
+            geocode(arrivalInput, destinationCoordinates => {
+                origin = originCoordinates;
+                destination = destinationCoordinates;
+
+                point.features[0].geometry.coordinates = origin;
+
+                route.features[0].properties.style = selectedStyle;
+
+                resetAnimation(); // Reset animation before starting a new one
+                animateRoute(selectedVehicle, selectedTravelMode);
+
+                const lineDistance = turf.distance(turf.point(origin), turf.point(destination));
+                console.log('Distance:', lineDistance.toFixed(2), 'kilometers');
+                distanceTag.innerText = `Distance: ${lineDistance.toFixed(2)} kilometers`;
+            });
+        });
+    });
+
+    document.getElementById('record').addEventListener('click', () => {
+        startRecording();
+    });
+
+    document.getElementById('stopRecord').addEventListener('click', () => {
+        document.getElementById('downloadLink').click();
+    });
+
+    document.getElementById('satelliteStyleBtn').addEventListener('click', () => {
+        // No action needed, as already on the satellite-style page
+    });
+
+    document.getElementById('darkStyleBtn').addEventListener('click', () => {
+        goToDarkPage();
+    });
+});
+</script>
 
 </body>
-
-
-
-
 
 </html>

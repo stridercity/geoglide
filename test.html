@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Canvas Video Recording</title>
+</head>
+
+<body>
+  <div>
+    <canvas id="canvas" width="640" height="480"></canvas>
+    <button id="start-btn">Start Recording</button>
+    <button id="stop-btn">Stop Recording</button>
+  </div>
+  
+  <script>
+    // Get video elements
+    const canvas = document.getElementById('canvas');
+    const startButton = document.getElementById('start-btn');
+    const stopButton = document.getElementById('stop-btn');
+
+    // Create video stream
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        const mediaRecorder = new MediaRecorder(stream);
+        const chunks = [];
+
+        // Start recording
+        startButton.addEventListener('click', () => {
+          mediaRecorder.start();
+        });
+
+        // Stop recording
+        stopButton.addEventListener('click', () => {
+          mediaRecorder.stop();
+        });
+
+        // Save recorded video
+        mediaRecorder.addEventListener('dataavailable', (event) => {
+          chunks.push(event.data);
+        });
+
+        // Create blob from chunks and initiate download
+        mediaRecorder.addEventListener('stop', () => {
+          const blob = new Blob(chunks, { 'type': 'video/mp4' });
+          
+          // Send blob to server (endpoint URL)
+          const endpoint = 'YOUR_ENDPOINT_URL';
+          const formData = new FormData();
+          formData.append('video', blob, 'recorded-video.mp4');
+          
+          fetch(endpoint, {
+            method: 'POST',
+            body: formData
+          })
+          .then(response => {
+            console.log('Video saved successfully!');
+          })
+          .catch(error => {
+            console.error('Error saving the video!');
+          });
+        });
+      })
+      .catch(error => {
+        console.error('Access to camera denied!', error);
+      });
+  </script>
+</body>
+
+</html>
